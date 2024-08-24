@@ -2,7 +2,7 @@
 env: 
   env_name: "realman_hand_over"
   numEnvs: 128
-  envSpacing: 0.75
+  envSpacing: 1.6
   episodeLength: 75
   enableDebugVis: False
   cameraDebug: True
@@ -21,10 +21,10 @@ env:
 
   resetPositionNoise: 0.01
   resetRotationNoise: 0.0
-  resetDofPosRandomInterval: 0.2
+  resetDofPosRandomInterval: 0.02
   resetDofVelRandomInterval: 0.0
 
-  distRewardScale: 50
+  distRewardScale: 100
   rotRewardScale: 1.0
   rotEps: 0.1
   actionPenaltyScale: -0.0002
