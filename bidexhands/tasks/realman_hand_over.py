@@ -329,16 +329,14 @@ class RealManHandOver(BaseTask):
         realman_dof_props = self.gym.get_asset_dof_properties(realman_asset)
         realman_another_dof_props = self.gym.get_asset_dof_properties(realman_another_asset)
 
-        self.realman_dof_lower_limits = []
-        self.realman_dof_upper_limits = []
+        self.realman_dof_lower_limits = [-3.1, -2.268, -3.1, -2.355, -3.1, -2.233, -6.28, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.realman_dof_upper_limits = [3.1, 2.268, 3.1, 2.355, 3.1, 2.233, 6.28, 1.3, 0.5, 1.0, 1.2, 1.7, 1.6, 1.7, 1.6, 1.7, 1.6, 1.7, 1.6]
         self.realman_dof_default_pos = []
         self.realman_dof_default_vel = []
         self.sensors = []
         sensor_pose = gymapi.Transform()
 
         for i in range(self.num_realman_dofs):
-            self.realman_dof_lower_limits.append(realman_dof_props['lower'][i])
-            self.realman_dof_upper_limits.append(realman_dof_props['upper'][i])
             self.realman_dof_default_pos.append(0.0)
             self.realman_dof_default_vel.append(0.0)
 
