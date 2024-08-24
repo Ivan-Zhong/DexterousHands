@@ -360,7 +360,7 @@ class RealManHandOver(BaseTask):
 
         realman_another_start_pose = gymapi.Transform()
         realman_another_start_pose.p = gymapi.Vec3(0, 2.2, 0.5)
-        realman_another_start_pose.r = gymapi.Quat().from_euler_zyx(1.57, 3.1415, 0)
+        realman_another_start_pose.r = gymapi.Quat().from_euler_zyx(1.57, 3.14, 0)
 
         object_start_pose = gymapi.Transform()
         object_start_pose.p = gymapi.Vec3()
@@ -774,7 +774,9 @@ class RealManHandOver(BaseTask):
         new_rot = randomize_rotation(rand_floats[:, 0], rand_floats[:, 1], self.x_unit_tensor[env_ids], self.y_unit_tensor[env_ids])
 
         self.goal_states[env_ids, 0:3] = self.goal_init_state[env_ids, 0:3]
-        self.goal_states[env_ids, 1] -= 0.25
+        # self.goal_states[env_ids, 1] -= 0.25
+        self.goal_states[env_ids, 0] += 0.2
+        self.goal_states[env_ids, 1] += 0.2
         self.goal_states[env_ids, 3:7] = new_rot
         self.root_state_tensor[self.goal_object_indices[env_ids], 0:3] = self.goal_states[env_ids, 0:3] + self.goal_displacement_tensor
         self.root_state_tensor[self.goal_object_indices[env_ids], 3:7] = self.goal_states[env_ids, 3:7]
@@ -835,8 +837,8 @@ class RealManHandOver(BaseTask):
         delta_min = self.realman_dof_lower_limits - self.realman_dof_default_pos
         rand_delta = delta_min + (delta_max - delta_min) * rand_floats[:, 5:5+self.num_realman_dofs]
 
-        pos = self.realman_default_dof_pos + self.reset_dof_pos_noise * rand_delta
-        # pos = self.realman_default_dof_pos
+        # pos = self.realman_default_dof_pos + self.reset_dof_pos_noise * rand_delta
+        pos = self.realman_default_dof_pos
 
         self.realman_dof_pos[env_ids, :] = pos
         self.realman_another_dof_pos[env_ids, :] = pos
