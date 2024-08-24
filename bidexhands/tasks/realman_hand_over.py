@@ -132,10 +132,10 @@ class RealManHandOver(BaseTask):
         print("Obs type:", self.obs_type)
 
         self.num_obs_dict = {
-            "full_state": 398  # TODO
+            "full_state": 340
         }
         
-        self.num_hand_obs = 72 + 95 + 20  # TODO
+        self.num_hand_obs = 57 + 95 + 6
         self.up_axis = 'z'
 
         self.fingertips = ["R_index_distal", "R_middle_distal", "R_ring_distal", "R_pinky_distal", "R_thumb_distal"]
@@ -151,17 +151,17 @@ class RealManHandOver(BaseTask):
 
         num_states = 0
         if self.asymmetric_obs:
-            num_states = 211  # TODO
+            num_states = 211
 
         self.cfg["env"]["numObservations"] = self.num_obs_dict[self.obs_type]
         self.cfg["env"]["numStates"] = num_states
         if self.is_multi_agent:
             self.num_agents = 2
-            self.cfg["env"]["numActions"] = 20
+            self.cfg["env"]["numActions"] = 6
             
         else:
             self.num_agents = 1
-            self.cfg["env"]["numActions"] = 40
+            self.cfg["env"]["numActions"] = 12
 
         self.cfg["device_type"] = device_type
         self.cfg["device_id"] = device_id
@@ -274,7 +274,7 @@ class RealManHandOver(BaseTask):
 
         object_asset_file = self.asset_files_dict[self.object_type]
 
-        # load shadow hand_ asset
+        # load realman asset
         asset_options = gymapi.AssetOptions()
         asset_options.flip_visual_attachments = False
         asset_options.fix_base_link = True
@@ -305,8 +305,8 @@ class RealManHandOver(BaseTask):
         # tendon set up
         limit_stiffness = 30
         t_damping = 0.1
-        relevant_tendons = ["robot0:T_FFJ1c", "robot0:T_MFJ1c", "robot0:T_RFJ1c", "robot0:T_LFJ1c"]
-        a_relevant_tendons = ["robot1:T_FFJ1c", "robot1:T_MFJ1c", "robot1:T_RFJ1c", "robot1:T_LFJ1c"]
+        relevant_tendons = ['index_tendon', 'middle_tendon', 'ring_tendon', 'pinky_tendon', 'thumb_tendon_1']
+        a_relevant_tendons = ['index_tendon', 'middle_tendon', 'ring_tendon', 'pinky_tendon', 'thumb_tendon_1']
         tendon_props = self.gym.get_asset_tendon_properties(realman_asset)
         a_tendon_props = self.gym.get_asset_tendon_properties(realman_another_asset)
 
@@ -359,9 +359,9 @@ class RealManHandOver(BaseTask):
         realman_start_pose = gymapi.Transform()
         realman_start_pose.p = gymapi.Vec3(*get_axis_params(0.5, self.up_axis_idx))
 
-        shadow_another_hand_start_pose = gymapi.Transform()
-        shadow_another_hand_start_pose.p = gymapi.Vec3(0, -1, 0.5)
-        shadow_another_hand_start_pose.r = gymapi.Quat().from_euler_zyx(0, 0, 3.1415)
+        realman_another_start_pose = gymapi.Transform()
+        realman_another_start_pose.p = gymapi.Vec3(0, -1, 0.5)
+        realman_another_start_pose.r = gymapi.Quat().from_euler_zyx(0, 0, 3.1415)
 
         object_start_pose = gymapi.Transform()
         object_start_pose.p = gymapi.Vec3()
@@ -407,33 +407,6 @@ class RealManHandOver(BaseTask):
             self.gym.create_asset_force_sensor(realman_asset, ft_handle, sensor_pose)
         for ft_a_handle in self.fingertip_another_handles:
             self.gym.create_asset_force_sensor(realman_another_asset, ft_a_handle, sensor_pose)
-        
-        if self.obs_type in ["point_cloud"]:
-            self.cameras = []
-            self.camera_tensors = []
-            self.camera_view_matrixs = []
-            self.camera_proj_matrixs = []
-
-            self.camera_props = gymapi.CameraProperties()
-            self.camera_props.width = 256
-            self.camera_props.height = 256
-            self.camera_props.enable_tensors = True
-
-            self.env_origin = torch.zeros((self.num_envs, 3), device=self.device, dtype=torch.float)
-            self.pointCloudDownsampleNum = 768
-            self.camera_u = torch.arange(0, self.camera_props.width, device=self.device)
-            self.camera_v = torch.arange(0, self.camera_props.height, device=self.device)
-
-            self.camera_v2, self.camera_u2 = torch.meshgrid(self.camera_v, self.camera_u, indexing='ij')
-
-            if self.point_cloud_debug:
-                import open3d as o3d
-                from bidexhands.utils.o3dviewer import PointcloudVisualizer
-                self.pointCloudVisualizer = PointcloudVisualizer()
-                self.pointCloudVisualizerInitialized = False
-                self.o3d_pc = o3d.geometry.PointCloud()
-            else :
-                self.pointCloudVisualizer = None
 
         for i in range(self.num_envs):
             # create env instance
@@ -446,7 +419,7 @@ class RealManHandOver(BaseTask):
 
             # add hand - collision filter = -1 to use asset collision filters set in mjcf loader
             realman_actor = self.gym.create_actor(env_ptr, realman_asset, realman_start_pose, "hand", i, -1, 0)
-            realman_another_actor = self.gym.create_actor(env_ptr, realman_another_asset, shadow_another_hand_start_pose, "another_hand", i, -1, 0)
+            realman_another_actor = self.gym.create_actor(env_ptr, realman_another_asset, realman_another_start_pose, "another_hand", i, -1, 0)
             
             self.hand_start_states.append([realman_start_pose.p.x, realman_start_pose.p.y, realman_start_pose.p.z,
                                            realman_start_pose.r.x, realman_start_pose.r.y, realman_start_pose.r.z, realman_start_pose.r.w,
@@ -505,23 +478,6 @@ class RealManHandOver(BaseTask):
                     env_ptr, object_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.6, 0.72, 0.98))
                 self.gym.set_rigid_body_color(
                     env_ptr, goal_handle, 0, gymapi.MESH_VISUAL, gymapi.Vec3(0.6, 0.72, 0.98))
-
-            if self.obs_type in ["point_cloud"]:
-                camera_handle = self.gym.create_camera_sensor(env_ptr, self.camera_props)
-                self.gym.set_camera_location(camera_handle, env_ptr, gymapi.Vec3(0.25, -0.5, 0.75), gymapi.Vec3(-0.24, -0.5, 0))
-                camera_tensor = self.gym.get_camera_image_gpu_tensor(self.sim, env_ptr, camera_handle, gymapi.IMAGE_DEPTH)
-                torch_cam_tensor = gymtorch.wrap_tensor(camera_tensor)
-                cam_vinv = torch.inverse((torch.tensor(self.gym.get_camera_view_matrix(self.sim, env_ptr, camera_handle)))).to(self.device)
-                cam_proj = torch.tensor(self.gym.get_camera_proj_matrix(self.sim, env_ptr, camera_handle), device=self.device)
-
-                origin = self.gym.get_env_origin(env_ptr)
-                self.env_origin[i][0] = origin.x
-                self.env_origin[i][1] = origin.y
-                self.env_origin[i][2] = origin.z
-                self.camera_tensors.append(torch_cam_tensor)
-                self.camera_view_matrixs.append(cam_vinv)
-                self.camera_proj_matrixs.append(cam_proj)
-                self.cameras.append(camera_handle)
 
             if self.aggregate_mode > 0:
                 self.gym.end_aggregate(env_ptr)
@@ -595,10 +551,6 @@ class RealManHandOver(BaseTask):
         self.gym.refresh_force_sensor_tensor(self.sim)
         self.gym.refresh_dof_force_tensor(self.sim)
 
-        if self.obs_type in ["point_cloud"]:
-            self.gym.render_all_camera_sensors(self.sim)
-            self.gym.start_access_image_tensors(self.sim)
-
         self.object_pose = self.root_state_tensor[self.object_indices, 0:7]
         self.object_pos = self.root_state_tensor[self.object_indices, 0:3]
         self.object_rot = self.root_state_tensor[self.object_indices, 3:7]
@@ -660,39 +612,41 @@ class RealManHandOver(BaseTask):
         self.obs_buf[:, 0:self.num_realman_dofs] = unscale(self.realman_dof_pos,
                                                             self.realman_dof_lower_limits, self.realman_dof_upper_limits)
         self.obs_buf[:, self.num_realman_dofs:2*self.num_realman_dofs] = self.vel_obs_scale * self.realman_dof_vel
-        self.obs_buf[:, 2*self.num_realman_dofs:3*self.num_realman_dofs] = self.force_torque_obs_scale * self.dof_force_tensor[:, :24]
+        self.obs_buf[:, 2*self.num_realman_dofs:3*self.num_realman_dofs] = self.force_torque_obs_scale * self.dof_force_tensor[:, :19]
 
-        fingertip_obs_start = 72  # 168 = 157 + 11
+        fingertip_obs_start = 57
         self.obs_buf[:, fingertip_obs_start:fingertip_obs_start + num_ft_states] = self.fingertip_state.reshape(self.num_envs, num_ft_states)
         self.obs_buf[:, fingertip_obs_start + num_ft_states:fingertip_obs_start + num_ft_states +
                     num_ft_force_torques] = self.force_torque_obs_scale * self.vec_sensor_tensor[:, :30]
 
         action_obs_start = fingertip_obs_start + 95
-        self.obs_buf[:, action_obs_start:action_obs_start + 20] = self.actions[:, :20]
+        self.obs_buf[:, action_obs_start:action_obs_start + 6] = self.actions[:, :6]
 
         # another_hand
-        another_hand_start = action_obs_start + 20
+        another_hand_start = action_obs_start + 6
         self.obs_buf[:, another_hand_start:self.num_realman_dofs + another_hand_start] = unscale(self.realman_another_dof_pos,
                                                             self.realman_dof_lower_limits, self.realman_dof_upper_limits)
         self.obs_buf[:, self.num_realman_dofs + another_hand_start:2*self.num_realman_dofs + another_hand_start] = self.vel_obs_scale * self.realman_another_dof_vel
-        self.obs_buf[:, 2*self.num_realman_dofs + another_hand_start:3*self.num_realman_dofs + another_hand_start] = self.force_torque_obs_scale * self.dof_force_tensor[:, 24:48]
+        self.obs_buf[:, 2*self.num_realman_dofs + another_hand_start:3*self.num_realman_dofs + another_hand_start] = self.force_torque_obs_scale * self.dof_force_tensor[:, 19:38]
 
-        fingertip_another_obs_start = another_hand_start + 72
+        fingertip_another_obs_start = another_hand_start + 57
         self.obs_buf[:, fingertip_another_obs_start:fingertip_another_obs_start + num_ft_states] = self.fingertip_another_state.reshape(self.num_envs, num_ft_states)
         self.obs_buf[:, fingertip_another_obs_start + num_ft_states:fingertip_another_obs_start + num_ft_states +
                     num_ft_force_torques] = self.force_torque_obs_scale * self.vec_sensor_tensor[:, 30:]
 
         action_another_obs_start = fingertip_another_obs_start + 95
-        self.obs_buf[:, action_another_obs_start:action_another_obs_start + 20] = self.actions[:, 20:]
+        self.obs_buf[:, action_another_obs_start:action_another_obs_start + 6] = self.actions[:, 6:]
 
-        obj_obs_start = action_another_obs_start + 20  # 144
+        obj_obs_start = action_another_obs_start + 6
         self.obs_buf[:, obj_obs_start:obj_obs_start + 7] = self.object_pose
         self.obs_buf[:, obj_obs_start + 7:obj_obs_start + 10] = self.object_linvel
         self.obs_buf[:, obj_obs_start + 10:obj_obs_start + 13] = self.vel_obs_scale * self.object_angvel
 
-        goal_obs_start = obj_obs_start + 13  # 157 = 144 + 13
+        goal_obs_start = obj_obs_start + 13
         self.obs_buf[:, goal_obs_start:goal_obs_start + 7] = self.goal_pose
         self.obs_buf[:, goal_obs_start + 7:goal_obs_start + 11] = quat_mul(self.object_rot, quat_conjugate(self.goal_rot))
+
+        # Total state size = 2 * (57 + 95 + 6) + 13 + 11 = 340
 
     def compute_point_cloud_observation(self, collect_demonstration=False):
         """
@@ -877,7 +831,7 @@ class RealManHandOver(BaseTask):
         #                                              gymtorch.unwrap_tensor(self.root_state_tensor),
         #                                              gymtorch.unwrap_tensor(object_indices), len(object_indices))
 
-        # reset shadow hand
+        # reset realman
         delta_max = self.realman_dof_upper_limits - self.realman_dof_default_pos
         delta_min = self.realman_dof_lower_limits - self.realman_dof_default_pos
         rand_delta = delta_min + (delta_max - delta_min) * rand_floats[:, 5:5+self.num_realman_dofs]
@@ -929,8 +883,8 @@ class RealManHandOver(BaseTask):
         action space as shown in below:
         
         Index   Description
-        0 - 19 	right shadow hand actuated joint
-        20 - 39	left shadow hand actuated joint
+        0 - 5 	right shadow hand actuated joint
+        6 - 11	left shadow hand actuated joint
 
         Args:
             actions (tensor): Actions of agents in the all environment 
@@ -954,18 +908,18 @@ class RealManHandOver(BaseTask):
             self.cur_targets[:, self.actuated_dof_indices] = tensor_clamp(targets,
                                                                           self.realman_dof_lower_limits[self.actuated_dof_indices], self.realman_dof_upper_limits[self.actuated_dof_indices])
         else:
-            self.cur_targets[:, self.actuated_dof_indices] = scale(self.actions[:, :20],
+            self.cur_targets[:, self.actuated_dof_indices] = scale(self.actions[:, :6],
                                                                    self.realman_dof_lower_limits[self.actuated_dof_indices], self.realman_dof_upper_limits[self.actuated_dof_indices])
             self.cur_targets[:, self.actuated_dof_indices] = self.act_moving_average * self.cur_targets[:,
                                                                                                         self.actuated_dof_indices] + (1.0 - self.act_moving_average) * self.prev_targets[:, self.actuated_dof_indices]
             self.cur_targets[:, self.actuated_dof_indices] = tensor_clamp(self.cur_targets[:, self.actuated_dof_indices],
                                                                           self.realman_dof_lower_limits[self.actuated_dof_indices], self.realman_dof_upper_limits[self.actuated_dof_indices])
 
-            self.cur_targets[:, self.actuated_dof_indices + 24] = scale(self.actions[:, 20:40],
+            self.cur_targets[:, self.actuated_dof_indices + 19] = scale(self.actions[:, 6:12],
                                                                    self.realman_dof_lower_limits[self.actuated_dof_indices], self.realman_dof_upper_limits[self.actuated_dof_indices])
-            self.cur_targets[:, self.actuated_dof_indices + 24] = self.act_moving_average * self.cur_targets[:,
-                                                                                                        self.actuated_dof_indices + 24] + (1.0 - self.act_moving_average) * self.prev_targets[:, self.actuated_dof_indices]
-            self.cur_targets[:, self.actuated_dof_indices + 24] = tensor_clamp(self.cur_targets[:, self.actuated_dof_indices + 24],
+            self.cur_targets[:, self.actuated_dof_indices + 19] = self.act_moving_average * self.cur_targets[:,
+                                                                                                        self.actuated_dof_indices + 19] + (1.0 - self.act_moving_average) * self.prev_targets[:, self.actuated_dof_indices]
+            self.cur_targets[:, self.actuated_dof_indices + 19] = tensor_clamp(self.cur_targets[:, self.actuated_dof_indices + 19],
                                                                           self.realman_dof_lower_limits[self.actuated_dof_indices], self.realman_dof_upper_limits[self.actuated_dof_indices])
 
             # self.root_state_tensor[self.goal_object_indices, :3] = self.rigid_body_states[:,  3 + 27, 0:3] + self.z_unit_tensor * 0.055 + self.y_unit_tensor * -0.04
@@ -973,7 +927,7 @@ class RealManHandOver(BaseTask):
             # self.gym.set_actor_root_state_tensor(self.sim,  gymtorch.unwrap_tensor(self.root_state_tensor))
 
         self.prev_targets[:, self.actuated_dof_indices] = self.cur_targets[:, self.actuated_dof_indices]
-        self.prev_targets[:, self.actuated_dof_indices + 24] = self.cur_targets[:, self.actuated_dof_indices + 24]
+        self.prev_targets[:, self.actuated_dof_indices + 19] = self.cur_targets[:, self.actuated_dof_indices + 19]
         self.gym.set_dof_position_target_tensor(self.sim, gymtorch.unwrap_tensor(self.cur_targets))
 
     def post_physics_step(self):
