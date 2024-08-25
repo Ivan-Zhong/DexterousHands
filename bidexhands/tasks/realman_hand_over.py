@@ -328,17 +328,54 @@ class RealManHandOver(BaseTask):
         # set realman dof properties
         realman_dof_props = self.gym.get_asset_dof_properties(realman_asset)
         realman_another_dof_props = self.gym.get_asset_dof_properties(realman_another_asset)
+        realman_dof_props["driveMode"][:] = gymapi.DOF_MODE_POS
+        realman_another_dof_props["driveMode"][:] = gymapi.DOF_MODE_POS
 
         self.realman_dof_lower_limits = [-3.1, -2.268, -3.1, -2.355, -3.1, -2.233, -6.28, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         self.realman_dof_upper_limits = [3.1, 2.268, 3.1, 2.355, 3.1, 2.233, 6.28, 1.3, 0.5, 1.0, 1.2, 1.7, 1.6, 1.7, 1.6, 1.7, 1.6, 1.7, 1.6]
+        self.realman_dof_default_pos = [0.0, 0.0, 0.0, 0.6, 0.0, 0.59, -1.57, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+        self.realman_dof_default_vel = []
+        self.sensors = []
+        sensor_pose = gymapi.Transform()
+
+        self.realman_dof_lower_limits = []
+        self.realman_dof_upper_limits = []
         self.realman_dof_default_pos = []
         self.realman_dof_default_vel = []
         self.sensors = []
         sensor_pose = gymapi.Transform()
 
+        realman_dof_lower_limits_list = [-3.1, -2.268, -3.1, -2.355, -3.1, -2.233, -6.28]
+        realman_dof_upper_limits_list = [3.1, 2.268, 3.1, 2.355, 3.1, 2.233, 6.28]
+        realman_dof_default_pos_list = [0.0, 0.0, 0.0, 0.6, 0.0, 0.59, -1.57]
+        
+        realman_dof_stiffness_list = [200, 200, 100, 100, 50, 50, 50]
+        realman_dof_damping_list = [20, 20, 10, 10, 10, 5, 5]
+        realman_dof_effort_list = [60, 60, 30, 30, 10, 10, 10]
+        realman_dof_velocity_list = [1, 1, 1, 1, 1, 1, 1]
+
         for i in range(self.num_realman_dofs):
-            self.realman_dof_default_pos.append(0.0)
+            if i < 7:
+                self.realman_dof_lower_limits.append(realman_dof_lower_limits_list[i])
+                self.realman_dof_upper_limits.append(realman_dof_upper_limits_list[i])
+                self.realman_dof_default_pos.append(realman_dof_default_pos_list[i])
+            else:
+                self.realman_dof_lower_limits.append(realman_dof_props['lower'][i])
+                self.realman_dof_upper_limits.append(realman_dof_props['upper'][i])
+                self.realman_dof_default_pos.append(0.0)
             self.realman_dof_default_vel.append(0.0)
+
+            realman_dof_props['driveMode'][i] = gymapi.DOF_MODE_POS
+            realman_another_dof_props['driveMode'][i] = gymapi.DOF_MODE_POS
+            if i < 7:
+                realman_dof_props['stiffness'][i] = realman_dof_stiffness_list[i]
+                realman_dof_props['effort'][i] = realman_dof_effort_list[i]
+                realman_dof_props['damping'][i] = realman_dof_damping_list[i]
+                realman_dof_props['velocity'][i] = realman_dof_velocity_list[i]
+                realman_another_dof_props['stiffness'][i] = realman_dof_stiffness_list[i]
+                realman_another_dof_props['effort'][i] = realman_dof_effort_list[i]
+                realman_another_dof_props['damping'][i] = realman_dof_damping_list[i]
+                realman_another_dof_props['velocity'][i] = realman_dof_velocity_list[i]
 
         self.actuated_dof_indices = to_torch(self.actuated_dof_indices, dtype=torch.long, device=self.device)
         self.realman_dof_lower_limits = to_torch(self.realman_dof_lower_limits, device=self.device)
